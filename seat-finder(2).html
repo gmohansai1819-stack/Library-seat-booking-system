@@ -1,0 +1,516 @@
+<title>Seat Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky top bar, two tabs (Student / Staff). Student = map + side panel; Staff = dashboard grid. */
+:root {
+  --bg:#eaeff5; --surface:#fff; --ink:#0e1b2e; --ink2:#51627a; --line:#d3dbe6; --line2:#c0cbda;
+  --cobalt:#2340c8; --cobalt-d:#172b94; --signal:#ffc928; --free:#178a5c; --free-l:#dff3ea;
+  --booked:#d99100; --booked-l:#fff4d6; --occ:#cf3f33; --brk:#2f7fc1; --held:#7b8899; --held-l:#f0f2f6;
+  --danger:#b3261e; --grid:#dfe6ef; --navy:#0e1b2e; --on-navy:#fff; --on-navy2:#b7c4d8;
+  --f-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif; --f-body:'Figtree','Segoe UI',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#0a1220; --surface:#121d31; --ink:#e8eef8; --ink2:#9fb0c8; --line:#243350; --line2:#2f4163;
+  --cobalt:#6f8bff; --cobalt-d:#4a66e0; --free:#3fc58c; --free-l:#12382b; --booked:#f0b43a; --booked-l:#3a2f12;
+  --occ:#ee6a5e; --brk:#5aa6e8; --held:#8d9bb0; --held-l:#1c2740; --danger:#ff8a80; --grid:#17233a; --navy:#050b16; color-scheme:dark; } }
+:root[data-theme="dark"] {
+  --bg:#0a1220; --surface:#121d31; --ink:#e8eef8; --ink2:#9fb0c8; --line:#243350; --line2:#2f4163;
+  --cobalt:#6f8bff; --cobalt-d:#4a66e0; --free:#3fc58c; --free-l:#12382b; --booked:#f0b43a; --booked-l:#3a2f12;
+  --occ:#ee6a5e; --brk:#5aa6e8; --held:#8d9bb0; --held-l:#1c2740; --danger:#ff8a80; --grid:#17233a; --navy:#050b16; color-scheme:dark; }
+
+*{box-sizing:border-box} [hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f-body);padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.12;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:1.3rem;font-weight:800} h3{font-size:1.05rem;font-weight:800}
+p{margin:0} .muted{color:var(--ink2)} .mono{font-family:var(--f-mono)} .hint{font-size:.85rem;color:var(--ink2)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1280px;margin:0 auto}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1.5px solid var(--line);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:.7rem max(16px,env(safe-area-inset-right,0px)) .7rem max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}
+.brand{display:flex;align-items:center;gap:.5rem;font:800 1.2rem var(--f-display)}
+.brand svg{width:30px;height:30px}
+.tabs{display:flex;gap:.25rem;background:var(--line);padding:3px;border-radius:12px}
+.tabs button{border:0;background:transparent;padding:.4rem .9rem;border-radius:9px;font-weight:600;cursor:pointer;color:var(--ink2)}
+.tabs button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px #0003}
+.grow{flex:1}
+.speed{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--ink2)}
+.speed select{min-height:36px;border:1.5px solid var(--line2);border-radius:8px;background:var(--surface);padding:0 .4rem}
+.who{font-size:.85rem;text-align:right;line-height:1.2}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:42px;padding:.45rem 1rem;border-radius:10px;border:1.5px solid var(--ink);background:var(--surface);font-weight:600;cursor:pointer}
+.btn:hover{background:var(--bg)} .btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--cobalt);border-color:var(--cobalt);color:#fff;box-shadow:0 2px 0 var(--cobalt-d)} .btn-primary:hover{background:var(--cobalt-d)}
+.btn-signal{background:var(--signal);color:#0e1b2e;border-color:#0e1b2e;box-shadow:0 2px 0 #0e1b2e} .btn-signal:hover{background:#ffd75a}
+.btn-danger{color:var(--danger);border-color:var(--danger)} .btn-sm{min-height:34px;padding:.2rem .7rem;font-size:.88rem}
+.input{width:100%;min-height:46px;padding:.5rem .8rem;border:1.5px solid var(--line2);border-radius:10px;background:var(--surface)}
+.field{display:grid;gap:.3rem} .field label{font-weight:600;font-size:.92rem} .err{color:var(--danger);font-size:.88rem;min-height:1.2em}
+
+.chip{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:700;padding:.15rem .6rem;border-radius:99px;border:1.5px solid currentColor}
+.chip i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.free{color:var(--free)} .chip.booked{color:var(--booked)} .chip.occ{color:var(--occ)} .chip.brk{color:var(--brk)} .chip.held{color:var(--held)}
+
+/* login */
+.login{display:grid;grid-template-columns:1.1fr 1fr;gap:2rem;align-items:center;padding-block:2.5rem}
+.hero{background:var(--navy);color:var(--on-navy);border-radius:20px;padding:2rem;display:grid;gap:1.5rem}
+.hero h1{font-size:clamp(1.9rem,4.5vw,3rem);font-weight:800;letter-spacing:-.025em}
+.hero p{color:var(--on-navy2)}
+.mini{display:grid;grid-template-columns:repeat(16,1fr);gap:5px}
+.mini span{aspect-ratio:1;border-radius:4px;border:1.5px solid #3fc58c}
+.mini span.b{background:repeating-linear-gradient(45deg,#f0b43a 0 3px,#3a2f12 3px 6px);border-color:#f0b43a}
+.mini span.o{background:#cf3f33;border-color:#cf3f33}
+.cap{display:flex;gap:1.5rem;flex-wrap:wrap;color:var(--on-navy2);font-size:.9rem} .cap b{color:#fff;font:800 1.5rem var(--f-display);margin-right:.3rem}
+.card{background:var(--surface);border:1.5px solid var(--line2);border-radius:20px;padding:1.4rem;display:grid;gap:1rem;min-width:0}
+.note{background:var(--booked-l);border:1px solid var(--booked);border-radius:10px;padding:.6rem .8rem;font-size:.9rem}
+
+/* student */
+.shell{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:1.5rem;padding-block:1.2rem 3rem;align-items:start}
+.floors{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1rem}
+.floor-btn{text-align:left;border:1.5px solid var(--line2);background:var(--surface);border-radius:14px;padding:.7rem .9rem;cursor:pointer;display:grid;gap:.1rem}
+.floor-btn .n{font:800 1.8rem/1 var(--f-display);color:var(--ink2)} .floor-btn .nm{font-weight:700} .floor-btn .fr{font-size:.82rem;color:var(--ink2)}
+.floor-btn[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff} .floor-btn[aria-pressed=true] .n{color:var(--signal)} .floor-btn[aria-pressed=true] .fr{color:var(--on-navy2)}
+.planwrap{background:var(--surface);border:1.5px solid var(--line2);border-radius:20px;overflow:hidden}
+.plan{background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/24px 24px,var(--surface)}
+.plan svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;padding:.8rem 1rem;border-top:1.5px solid var(--line);font-size:.86rem;color:var(--ink2);align-items:center}
+.legend span{display:inline-flex;gap:.4rem;align-items:center} .legend svg{width:18px;height:18px}
+.furn{fill:var(--held-l);stroke:var(--line2);stroke-width:1.5}
+.zone{font:700 11px var(--f-body);letter-spacing:.1em;fill:var(--ink2)}
+.seat{cursor:pointer} .seat .shape{fill:var(--surface);stroke:var(--free);stroke-width:2.5} .seat .ring{fill:none;stroke:transparent;stroke-width:3.5}
+.seat text{font:500 9px var(--f-mono);text-anchor:middle;fill:var(--ink);pointer-events:none}
+.seat.st-b .shape{fill:url(#hb);stroke:var(--booked)} .seat.st-o .shape{fill:var(--occ);stroke:var(--occ)} .seat.st-o text{fill:#fff}
+.seat.st-k .shape{fill:var(--surface);stroke:var(--brk);stroke-dasharray:4 3}
+.seat.sel .ring{stroke:var(--cobalt)} .seat.mine .ring{stroke:var(--signal)} .seat:hover .ring{stroke:var(--line2)}
+.side{display:grid;gap:1.1rem;min-width:0}
+.sec{display:grid;gap:.7rem;min-width:0} .sec-h{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+.myseat{background:var(--navy);color:#fff;border-radius:20px;padding:1.2rem;display:grid;gap:.8rem}
+.myseat .big{font:800 3.2rem/1 var(--f-display);color:var(--signal)} .myseat .muted{color:var(--on-navy2)}
+.myseat .btn{border-color:#fff3;background:#ffffff14;color:#fff} .myseat .btn-signal{background:var(--signal);color:#0e1b2e;border-color:var(--signal)}
+.timer .t{font:500 2rem var(--f-mono)} .bar{height:7px;border-radius:5px;background:#ffffff26;overflow:hidden;margin-top:.4rem} .bar i{display:block;height:100%;background:var(--signal)}
+.actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.room-card,.booking-card{border:1.5px solid var(--line2);border-radius:14px;padding:.8rem;display:grid;gap:.45rem;background:var(--surface)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}
+.members{display:flex;flex-wrap:wrap;gap:.35rem}
+.member{font:500 .78rem var(--f-mono);background:var(--bg);border:1px solid var(--line2);border-radius:99px;padding:.15rem .55rem;display:inline-flex;gap:.3rem;align-items:center}
+.member.ok{background:var(--free-l);border-color:var(--free)} .member.me{border-color:var(--cobalt)}
+.member button{border:0;background:none;cursor:pointer;padding:0;color:var(--ink2)}
+
+.overlay{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:1rem;z-index:20} .overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px;padding:1.3rem;max-width:480px;width:100%;max-height:90vh;overflow:auto;display:grid;gap:.9rem}
+.seg{display:flex;gap:.4rem;flex-wrap:wrap} .seg label{cursor:pointer} .seg input{position:absolute;opacity:0}
+.seg span{display:block;padding:.4rem .8rem;border:1.5px solid var(--line2);border-radius:10px;font-weight:600} .seg input:checked+span{background:var(--cobalt);color:#fff;border-color:var(--cobalt)}
+.seg input:focus-visible+span{outline:3px solid var(--cobalt);outline-offset:2px}
+.addrow{display:flex;gap:.5rem}
+
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(1rem + env(safe-area-inset-bottom,0px));display:grid;gap:.5rem;z-index:30;width:min(92vw,440px)}
+.toast{background:var(--free);color:#fff;padding:.7rem 1rem;border-radius:12px;font-weight:600;box-shadow:0 6px 20px #0004} .toast.err{background:var(--danger);color:#fff}
+
+/* staff */
+.admin{display:grid;gap:1.2rem;padding-block:1.2rem 3rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem}
+.kpi{background:var(--surface);border:1.5px solid var(--line2);border-radius:14px;padding:.8rem 1rem} .kpi b{display:block;font:800 2rem/1.1 var(--f-display)} .kpi span{font-size:.85rem;color:var(--ink2)}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:1.2rem}
+.panel{background:var(--surface);border:1.5px solid var(--line2);border-radius:20px;padding:1.1rem;display:grid;gap:.9rem;align-content:start;min-width:0}
+.fbar .top2{display:flex;justify-content:space-between;font-weight:600;font-size:.92rem;margin-bottom:.25rem}
+.track{display:flex;height:14px;border-radius:8px;background:var(--free-l);overflow:hidden} .track i{display:block;height:100%} .track .o{background:var(--occ)} .track .b{background:var(--booked)} .track .k{background:var(--brk)}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.5rem} .rm{border:1.5px solid var(--line2);border-radius:10px;padding:.5rem .7rem;font-size:.85rem} .rm.busy{border-color:var(--occ);background:var(--held-l)} .rm b{display:block}
+.heat-wrap{overflow-x:auto} .heat{display:grid;grid-template-columns:36px repeat(16,minmax(30px,1fr));gap:3px;min-width:600px;font-size:.72rem}
+.heat .hd,.heat .dl{color:var(--ink2);text-align:center;align-self:center} .heat .c{height:28px;border-radius:5px;display:grid;place-items:center;font-size:.7rem;font-weight:700} .heat .c.peak{outline:2px solid var(--ink)}
+.scale{display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--ink2)} .scale i{width:140px;height:8px;border-radius:5px;background:linear-gradient(90deg,var(--free-l),var(--free))}
+.tw{overflow-x:auto;max-height:420px;overflow-y:auto} table{width:100%;border-collapse:collapse;font-size:.9rem} th{text-align:left;color:var(--ink2);font-weight:600;padding:.4rem .5rem;border-bottom:1.5px solid var(--line2);white-space:nowrap}
+td{padding:.45rem .5rem;border-bottom:1px solid var(--line);white-space:nowrap} .num{text-align:right;font-variant-numeric:tabular-nums} .flag{color:var(--danger);font-weight:700}
+.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+
+@media (max-width:1020px){.shell,.two{grid-template-columns:minmax(0,1fr)} .login{grid-template-columns:1fr}}
+@media (max-width:560px){.floors{gap:.4rem} .floor-btn{padding:.5rem} .floor-btn .fr{display:none} .who{display:none} .mini{grid-template-columns:repeat(12,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="top"><div class="wrap">
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor"/><rect x="18" y="2" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><rect x="2" y="18" width="12" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><rect x="18" y="18" width="12" height="12" rx="3" fill="#ffc928"/></svg>Seat Finder</div>
+  <div class="tabs" role="group" aria-label="View"><button id="tStu" aria-pressed="true">Student</button><button id="tStaff" aria-pressed="false">Staff dashboard</button></div>
+  <span class="grow"></span>
+  <label class="speed" for="speed">Demo clock <select id="speed"><option value="1">Real time</option><option value="30">30× faster</option><option value="120">120× faster</option></select></label>
+  <div class="who" id="who"></div>
+  <button class="btn btn-sm" id="logout" hidden>Log out</button>
+</div></div>
+
+<main class="wrap" id="main"></main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const KEY = 'seatfinder-demo-v1';
+const GRACE = 15*60, BREAK = 20*60, MAXB = 3, ATTEND = 10*60, EARLY = 5*60, COOL = 10*60, CAP = 6;
+const FLOORS = [{ n:1, name:'Computer Zone', kind:'desktop' }, { n:2, name:'Study Floor', kind:'table' }, { n:3, name:'Study Floor', kind:'table' }];
+const FAKE = ['Riya','Kabir','Meera','Arjun','Ishita','Dev','Sana','Vikram','Anya','Rohan','Tara','Neil'];
+
+/* ── layout: 48 desktops on floor 1, 12 four-seat tables on floors 2 and 3, 3 rooms per floor ── */
+const SEATS = [], ROOMS = [];
+for (const f of FLOORS) {
+  if (f.kind === 'desktop') for (let i = 0; i < 48; i++) {
+    const c = i % 8, r = Math.floor(i / 8), pod = Math.floor(r / 2), n = String(i + 1).padStart(2, '0');
+    SEATS.push({ id:`F${f.n}-D${n}`, floor:f.n, kind:'desktop', label:`D${n}`, x:40 + c*70, y:60 + r*58 + pod*44, grp:pod });
+  } else { let n = 0; for (let t = 0; t < 12; t++) {
+    const c = t % 4, r = Math.floor(t / 4), tx = 20 + c*150, ty = 80 + r*150;
+    for (const [x, y] of [[tx+25,ty-22],[tx+75,ty-22],[tx+25,ty+62],[tx+75,ty+62]]) { n++; const nn = String(n).padStart(2,'0'); SEATS.push({ id:`F${f.n}-T${nn}`, floor:f.n, kind:'table', label:`T${nn}`, x, y, grp:t }); } } }
+  for (let r = 1; r <= 3; r++) ROOMS.push({ id:`F${f.n}-R${r}`, floor:f.n, name:`Room ${f.n}0${r}` });
+}
+const seatById = Object.fromEntries(SEATS.map((s) => [s.id, s]));
+const roomById = Object.fromEntries(ROOMS.map((r) => [r.id, r]));
+
+/* ── state (saved in this browser, shared between tabs) ── */
+let S;
+function fresh() {
+  const t = Date.now();
+  const s = { sim:{ real:t, base:t/1000, speed:1 }, user:null, seats:{}, rooms:[], log:[], nos:0, cool:0, uid:1 };
+  const now = t/1000;
+  for (const seat of SEATS) if (Math.random() < 0.28) s.seats[seat.id] = { st:'o', reg:'2' + String(1000000 + Math.floor(Math.random()*8999999)), name:FAKE[Math.floor(Math.random()*FAKE.length)], since:now - Math.random()*7200, until:now + 600 + Math.random()*5400, fake:true, nb:0 };
+  return s;
+}
+function load() { try { const r = localStorage.getItem(KEY); if (r) return JSON.parse(r); } catch {} return null; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
+S = load() || fresh();
+const now = () => S.sim.base + (Date.now() - S.sim.real)/1000 * S.sim.speed;
+const clock = (t) => new Date(t*1000).toLocaleTimeString('en-IN', { hour:'numeric', minute:'2-digit' });
+const mmss = (s) => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60, p = (n) => String(n).padStart(2,'0'); return h ? `${h}:${p(m)}:${p(x)}` : `${p(m)}:${p(x)}`; };
+const mine = () => S.user && Object.entries(S.seats).find(([, v]) => v.reg === S.user.reg);
+
+function toast(msg, kind = '') {
+  const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg; $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), kind === 'err' ? 5500 : 3800);
+}
+
+/* ── sample history for the staff dashboard (last 14 days, with a few seats that are always hogged) ── */
+function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const HIST = (() => {
+  const r = rng(20261121), out = [], normal = SEATS, hogs = [3, 17, 33, 61, 88, 110].map((i) => normal[i].id);
+  const w = { 8:.15, 9:.4, 10:.8, 11:1, 12:.9, 13:.7, 14:.8, 15:.9, 16:1, 17:1, 18:.8, 19:.9, 20:.7, 21:.4, 22:.15 };
+  for (let d = 14; d >= 1; d--) {
+    const day = new Date(); day.setDate(day.getDate() - d); day.setHours(0,0,0,0); const d0 = day.getTime()/1000, we = day.getDay() === 0 || day.getDay() === 6;
+    const busy = {};
+    for (let h = 8; h <= 22; h++) { const n = Math.round(w[h] * (we ? .6 : 1) * 16 * (.7 + r()*.6));
+      for (let i = 0; i < n; i++) {
+        const pick = r() < .22, seat = pick ? hogs[Math.floor(r()*hogs.length)] : normal[Math.floor(r()*normal.length)].id, hog = hogs.includes(seat);
+        const s = d0 + h*3600 + Math.floor(r()*3600); if ((busy[seat] || 0) > s) continue;
+        const e = Math.min(s + Math.floor((hog ? 180 + r()*240 : 40 + r()*110)*60), d0 + 23*3600 + 3000); busy[seat] = e;
+        out.push({ seat, s, e, over: r() < (hog ? .35 : .05) });
+      } }
+  }
+  return out;
+})();
+
+/* ── actions ── */
+function need() { if (!S.user) { toast('Log in first.', 'err'); return false; } return true; }
+function bookSeat(id) {
+  if (!need()) return; const t = now();
+  if (S.cool > t) return toast(`Booking is paused. Try again in ${Math.ceil((S.cool - t)/60)} min.`, 'err');
+  if (mine()) return toast('You already hold a seat. Check out of it first.', 'err');
+  if (S.seats[id]) return toast('Someone just took this seat. Pick another one.', 'err');
+  S.seats[id] = { st:'b', reg:S.user.reg, name:S.user.name, grace:t + GRACE, nb:0 };
+  sel = null; commit(); toast(`Seat ${seatById[id].label} booked. Scan its QR within 15 minutes.`);
+}
+function scanSeat(id) {
+  if (!need()) return; const t = now(), v = S.seats[id], m = mine();
+  if (v && v.reg !== S.user.reg) return toast('This seat is taken by another student.', 'err');
+  if (v) { if (v.st === 'o') return toast('You are already checked in here.'); const back = v.st === 'k'; v.st = 'o'; v.since = v.since || t; delete v.grace; delete v.until; S.nos = 0; commit(); return toast(back ? 'Welcome back. The seat is yours again.' : `Seat ${seatById[id].label} confirmed.`); }
+  if (m) { if (m[1].st !== 'b') return toast('You are already using another seat. Check out there first.', 'err'); delete S.seats[m[0]]; }
+  if (S.cool > t) return toast('Booking is paused for a few minutes.', 'err');
+  S.seats[id] = { st:'o', reg:S.user.reg, name:S.user.name, since:t, nb:0 }; commit(); toast(`Seat ${seatById[id].label} is yours. Enjoy your session.`);
+}
+function takeBreak() { const m = mine(); if (!m) return; const v = m[1];
+  if (v.st !== 'o') return toast('Scan the seat QR first.', 'err'); if (v.nb >= MAXB) return toast('You used all 3 breaks for this sitting.', 'err');
+  v.st = 'k'; v.until = now() + BREAK; v.nb++; commit(); toast('Break started. Be back within 20 minutes.'); }
+function endSeat(id, reason) { const v = S.seats[id]; if (!v) return; if (v.since) S.log.push({ seat:id, s:v.since, e:now(), over:reason === 'overrun' }); delete S.seats[id]; }
+function checkout() { const m = mine(); if (!m) return; const wasB = m[1].st === 'b'; endSeat(m[0], 'out'); commit(); toast(wasB ? 'Booking cancelled.' : 'Checked out. Thanks for freeing the seat.'); }
+
+function roomBusy(rid, t) { return S.rooms.find((r) => r.room === rid && ['booked','active'].includes(r.status) && r.start <= t && t < r.end); }
+function bookRoom(rid, members, startMin, dur) {
+  const t = now(), me = S.user.reg, all = [...new Set([me, ...members])];
+  if (S.cool > t) throw new Error('Booking is paused for a few minutes.');
+  if (all.length < 2) throw new Error('A group needs at least 2 people, including you.');
+  if (all.length > CAP) throw new Error(`A room seats at most ${CAP} people, including you.`);
+  const start = t + startMin*60, end = start + dur*60, live = S.rooms.filter((r) => ['booked','active'].includes(r.status));
+  if (live.some((r) => r.org === me && r.end > t)) throw new Error('You already have a group booking. Cancel it first.');
+  const clash = live.find((r) => r.room === rid && r.start < end && r.end > start); if (clash) throw new Error(`${roomById[rid].name} is booked until ${clock(clash.end)}. Pick another room or time.`);
+  const busy = live.find((r) => r.start < end && r.end > start && r.members.some((m) => all.includes(m))); if (busy) throw new Error('Someone in your group is already in another booking at that time.');
+  S.rooms.push({ id:S.uid++, room:rid, org:me, members:all, start, end, status:'booked', scanned:[] }); commit();
+}
+function scanRoom(id, reg) {
+  const rb = S.rooms.find((r) => r.id === id), t = now(); if (!rb || !['booked','active'].includes(rb.status)) return;
+  if (t < rb.start - EARLY) return toast('Scanning opens 5 minutes before the start.', 'err');
+  if (!rb.scanned.includes(reg)) rb.scanned.push(reg);
+  if (rb.status === 'booked' && rb.scanned.length >= Math.ceil(rb.members.length/2)) rb.status = 'active';
+  commit(); toast(rb.status === 'active' ? 'Group checked in. The room is yours.' : 'Checked in. Waiting for the rest of the group.');
+}
+
+/* ── timers: no-shows, break overruns, room release, fake crowd ── */
+function tick() {
+  const t = now(); let ch = false;
+  for (const [id, v] of Object.entries(S.seats)) {
+    if (v.st === 'b' && v.grace <= t) { delete S.seats[id]; ch = true;
+      if (S.user && v.reg === S.user.reg) { S.nos++; toast('Your booking was released because the QR was not scanned in time.', 'err'); if (S.nos >= 3) { S.nos = 0; S.cool = t + COOL; toast('Three unused bookings in a row. Booking paused for 10 minutes.', 'err'); } } }
+    else if (v.st === 'k' && v.until <= t) { endSeat(id, 'overrun'); ch = true; if (S.user && v.reg === S.user.reg) toast('Your break ran out, so the seat went back to the pool.', 'err'); }
+    else if (v.fake && v.st === 'o' && v.until <= t) { endSeat(id, 'out'); ch = true; }
+  }
+  const sp = Math.max(1, S.sim.speed/30);
+  if (Math.random() < 0.05*sp) { const free = SEATS.filter((s) => !S.seats[s.id]); if (free.length > 30) { const s = free[Math.floor(Math.random()*free.length)]; S.seats[s.id] = { st:'o', reg:'2' + String(1000000 + Math.floor(Math.random()*8999999)), name:FAKE[Math.floor(Math.random()*FAKE.length)], since:t, until:t + 1800 + Math.random()*7200, fake:true, nb:0 }; ch = true; } }
+  for (const rb of S.rooms) {
+    if (rb.status === 'booked' && rb.start + ATTEND <= t) { rb.status = 'released'; ch = true; if (S.user && rb.org === S.user.reg) toast(`${roomById[rb.room].name} was released: not enough of the group scanned in.`, 'err'); }
+    else if (['booked','active'].includes(rb.status) && rb.end <= t) { rb.status = 'done'; ch = true; }
+  }
+  if (ch) { commit(); } else updateTimers();
+}
+
+/* ── views ── */
+let view = location.hash === '#staff' ? 'staff' : 'student', floor = 1, sel = null, lastRoomPaint = 0;
+function commit() { save(); render(); }
+function setView(v) { view = v; history.replaceState(null, '', '#' + v); render(); }
+$('tStu').onclick = () => setView('student'); $('tStaff').onclick = () => setView('staff');
+$('speed').onchange = (e) => { const t = now(); S.sim = { real:Date.now(), base:t, speed:+e.target.value }; commit(); toast(e.target.value === '1' ? 'Demo clock back to real time.' : `Demo clock running ${e.target.value}× faster. Timers and auto-release will fire quickly.`); };
+$('logout').onclick = () => { S.user = null; commit(); };
+
+function render() {
+  $('tStu').setAttribute('aria-pressed', view === 'student'); $('tStaff').setAttribute('aria-pressed', view === 'staff');
+  $('speed').value = String(S.sim.speed);
+  $('who').innerHTML = S.user ? `<b>${esc(S.user.name)}</b><br><span class="mono">${esc(S.user.reg)}</span>` : '';
+  $('logout').hidden = !S.user;
+  if (view === 'staff') return renderStaff();
+  if (!S.user) return renderLogin();
+  renderStudent();
+}
+
+function counts() {
+  const c = {}; for (const f of FLOORS) c[f.n] = { total:0, free:0, b:0, o:0, k:0, roomsFree:0, rooms:0 };
+  const t = now();
+  for (const s of SEATS) { const x = c[s.floor], v = S.seats[s.id]; x.total++; if (!v) x.free++; else x[v.st]++; }
+  for (const r of ROOMS) { c[r.floor].rooms++; if (!roomBusy(r.id, t)) c[r.floor].roomsFree++; }
+  return c;
+}
+
+function renderLogin() {
+  const c = counts(); let tot = 0, free = 0, b = 0, rf = 0, rt = 0; for (const f of Object.values(c)) { tot += f.total; free += f.free; b += f.b; rf += f.roomsFree; rt += f.rooms; }
+  const cells = 96, nf = Math.round(cells*free/tot), nb = Math.round(cells*b/tot);
+  const order = Array.from({ length:cells }, (_, i) => (i*37) % cells);
+  const html = order.map((_, i) => `<span class="${i < nf ? '' : i < nf + nb ? 'b' : 'o'}"></span>`).join('');
+  const heroHtml = `<section class="hero"><div><h1>Know which seat is free before you climb the stairs.</h1></div>
+      <p>A live map of all three library floors. Book a seat, scan the QR when you sit down, and it goes back to the pool if you walk away.</p>
+      <div class="mini" aria-hidden="true">${html}</div>
+      <div class="cap"><span><b>${free}</b>of ${tot} seats free now</span><span><b>${rf}</b>of ${rt} group rooms open</span></div></section>`;
+  const old = $('lf');
+  if (old) { const h = document.querySelector('.hero'); if (h) h.outerHTML = heroHtml; return; }
+  $('main').innerHTML = `<div class="login">${heroHtml}
+    <form class="card" id="lf" novalidate>
+      <div><h2>Log in</h2><p class="muted">Use your name and 8-digit registration number.</p></div>
+      <div class="field"><label for="ln">Full name</label><input class="input" id="ln" autocomplete="name"><div class="err" id="en"></div></div>
+      <div class="field"><label for="lr">Registration number</label><input class="input mono" id="lr" inputmode="numeric" maxlength="8" autocomplete="off"><div class="err" id="er"></div></div>
+      <button class="btn btn-primary" type="submit">Log in</button>
+      <p class="hint">Library staff? Open the <a href="#staff" id="toStaff">staff dashboard</a>.</p>
+    </form></div>`;
+  $('toStaff').onclick = (e) => { e.preventDefault(); setView('staff'); };
+  $('lr').oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8); };
+  $('lf').onsubmit = (e) => { e.preventDefault();
+    const name = $('ln').value.trim().replace(/\s+/g, ' '), reg = $('lr').value.trim(); let ok = true;
+    $('en').textContent = $('er').textContent = '';
+    if (name.length < 2 || !/^[\p{L}][\p{L}\p{M} .'-]*$/u.test(name)) { $('en').textContent = 'Enter your full name using letters only.'; ok = false; }
+    if (!/^\d{8}$/.test(reg)) { $('er').textContent = 'Registration number must be exactly 8 digits.'; ok = false; }
+    if (!ok) return; S.user = { name, reg }; for (const v of Object.values(S.seats)) if (v.reg === reg) v.name = name; commit(); };
+}
+
+function seatSvg(s, st, isMine) {
+  const cls = `seat st-${st}${isMine ? ' mine' : ''}${sel === s.id ? ' sel' : ''}`;
+  const shape = s.kind === 'desktop' ? `<rect class="ring" x="-22" y="-18" width="44" height="36" rx="9"/><rect class="shape" x="-18" y="-13" width="36" height="26" rx="5"/>` : `<circle class="ring" r="18"/><circle class="shape" r="13"/>`;
+  const name = `${s.kind === 'desktop' ? 'Desktop' : 'Table seat'} ${s.label}, ${isMine ? 'your seat, ' : ''}${{ f:'free', b:'booked', o:'occupied', k:'on a break' }[st]}`;
+  return `<g class="${cls}" data-id="${s.id}" tabindex="0" role="button" aria-label="${name}" transform="translate(${s.x} ${s.y})">${shape}<text y="3">${s.label}</text></g>`;
+}
+function planSvg() {
+  const fl = FLOORS[floor - 1], seats = SEATS.filter((s) => s.floor === floor), m = mine(), mineId = m && m[0];
+  let furn = ''; const g = {}; for (const s of seats) (g[s.grp] ||= []).push(s);
+  for (const a of Object.values(g)) { const xs = a.map((s) => s.x), ys = a.map((s) => s.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    furn += fl.kind === 'desktop' ? `<rect class="furn" x="${x0-30}" y="${y0-26}" width="${x1-x0+60}" height="${y1-y0+52}" rx="12"/>` : `<rect class="furn" x="${x0-25}" y="${y0+22}" width="${x1-x0+50}" height="${y1-y0-44}" rx="8"/>`; }
+  return `<svg viewBox="0 0 620 ${fl.kind === 'desktop' ? 330 : 520}" role="group" aria-label="Floor ${floor} plan"><defs><pattern id="hb" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--booked-l)"/><rect width="3" height="6" style="fill:var(--booked)"/></pattern></defs>
+    <text class="zone" x="10" y="22">FLOOR ${floor} · ${fl.kind === 'desktop' ? 'DESKTOP COMPUTERS' : 'STUDY TABLES'}</text>${furn}${seats.map((s) => seatSvg(s, S.seats[s.id] ? S.seats[s.id].st : 'f', s.id === mineId)).join('')}</svg>`;
+}
+
+function renderStudent() {
+  const c = counts();
+  const sw = (st, ex = '') => `<svg viewBox="0 0 20 20" aria-hidden="true"><g class="seat st-${st}"><circle class="shape" cx="10" cy="10" r="7.5"/></g></svg>`;
+  $('main').innerHTML = `<div class="shell"><section aria-label="Floor map">
+    <div class="floors" role="group" aria-label="Choose a floor">${FLOORS.map((f) => `<button class="floor-btn" data-f="${f.n}" aria-pressed="${f.n === floor}"><span class="n">${f.n}</span><span class="nm">${f.name}</span><span class="fr">${c[f.n].free} seats free · ${c[f.n].roomsFree} rooms open</span></button>`).join('')}</div>
+    <div class="planwrap"><div class="plan" id="plan">${planSvg()}</div>
+    <div class="legend"><span>${sw('f')}Free</span><span>${sw('b')}Booked, waiting for QR</span><span>${sw('o')}Occupied</span><span>${sw('k')}On a break</span><span><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="#ffc928" stroke-width="3.5"/></svg>Your seat</span></div></div></section>
+    <aside class="side" aria-label="Your booking"><div class="sec" id="myBox"></div><div class="sec" id="selBox"></div><div class="sec" id="roomsBox"></div><div class="sec" id="grpBox"></div></aside></div>`;
+  document.querySelectorAll('.floor-btn').forEach((b) => b.onclick = () => { floor = +b.dataset.f; sel = null; render(); });
+  const plan = $('plan');
+  plan.onclick = (e) => { const g = e.target.closest('[data-id]'); if (g) pick(g.dataset.id); };
+  plan.onkeydown = (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest('[data-id]'); if (g) { e.preventDefault(); pick(g.dataset.id); } };
+  renderMy(); renderSel(); renderRooms(); renderGroups(); updateTimers();
+}
+function pick(id) { sel = id; $('plan').innerHTML = planSvg(); renderSel(); if (matchMedia('(max-width:1020px)').matches) $('selBox').scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+
+function renderMy() {
+  const box = $('myBox'), m = mine();
+  if (!m) { box.innerHTML = `<div class="card"><h2>No seat yet</h2><p class="muted">Tap a free seat on the map, or let us pick one with the most room around it.</p><div class="actions"><button class="btn btn-primary" id="bSug">Pick one for me</button></div></div>`;
+    $('bSug').onclick = suggest; return; }
+  const [id, v] = m, s = seatById[id], left = MAXB - v.nb;
+  const chip = { b:'Booked · scan to confirm', o:'Checked in', k:'On a break' }[v.st];
+  const sim = `<button class="btn" data-a="scan">Simulate QR scan</button>`;
+  const acts = v.st === 'b' ? `${sim.replace('class="btn"', 'class="btn btn-signal"')}<button class="btn" data-a="out">Cancel booking</button>`
+    : v.st === 'o' ? `<button class="btn btn-signal" data-a="brk" ${left <= 0 ? 'disabled' : ''}>Take a break (${Math.max(0, left)} left)</button><button class="btn" data-a="out">Check out</button>`
+    : `${sim.replace('class="btn"', 'class="btn btn-signal"').replace('Simulate QR scan', 'Scan to resume')}<button class="btn" data-a="out">Check out</button>`;
+  box.innerHTML = `<div class="myseat"><div class="sec-h"><span style="font-weight:700;color:var(--signal)">${chip}</span><span class="muted">Floor ${s.floor}</span></div>
+    <div><div class="big">${s.label}</div><div class="muted">${s.kind === 'desktop' ? 'Desktop computer' : 'Study table'}</div></div>
+    <div class="timer"><div class="t" id="tmr">--:--</div><div class="muted" id="tmrL"></div><div class="bar" id="tmrW"><i id="tmrB"></i></div></div><div class="actions">${acts}</div></div>`;
+  box.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => { const a = b.dataset.a; if (a === 'scan') scanSeat(id); else if (a === 'brk') takeBreak(); else checkout(); });
+}
+function updateTimers() {
+  const m = mine(), tmr = $('tmr'); if (m && tmr) { const v = m[1], t = now(), w = $('tmrW'), b = $('tmrB');
+    if (v.st === 'b') { tmr.textContent = mmss(v.grace - t); $('tmrL').textContent = 'left to scan the QR at your seat'; w.style.display = ''; b.style.width = Math.max(0, Math.min(100, (v.grace - t)/GRACE*100)) + '%'; }
+    else if (v.st === 'k') { tmr.textContent = mmss(v.until - t); $('tmrL').textContent = 'left to get back before the seat is released'; w.style.display = ''; b.style.width = Math.max(0, Math.min(100, (v.until - t)/BREAK*100)) + '%'; }
+    else { tmr.textContent = mmss(t - v.since); $('tmrL').textContent = 'at this seat'; w.style.display = 'none'; } }
+  if (view === 'student' && S.user && Date.now() - lastRoomPaint > 5000) { lastRoomPaint = Date.now(); if ($('roomsBox')) { renderRooms(); renderGroups(); } }
+}
+function suggest() {
+  const seats = SEATS.filter((s) => s.floor === floor), free = seats.filter((s) => !S.seats[s.id]);
+  if (!free.length) return toast(`No free seats on floor ${floor}. Try another floor.`, 'err');
+  const fg = {}; for (const s of free) fg[s.grp] = (fg[s.grp] || 0) + 1;
+  free.sort((a, b) => fg[b.grp] - fg[a.grp] || a.id.localeCompare(b.id)); pick(free[0].id); toast(`Seat ${free[0].label} has the most free space around it.`);
+}
+function renderSel() {
+  const box = $('selBox'); if (!sel) { box.innerHTML = ''; return; }
+  const s = seatById[sel], v = S.seats[sel], m = mine(), isMine = m && m[0] === sel, st = v ? v.st : 'f';
+  const chip = isMine ? ['free', 'Your seat'] : { f:['free','Free'], b:['booked','Booked'], o:['occ','Occupied'], k:['brk','On a break'] }[st];
+  const body = isMine ? `<p class="muted">This is your seat. Use the buttons above to take a break or check out.</p>`
+    : st === 'f' && m ? `<p class="muted">You already hold seat ${seatById[m[0]].label}. Check out of it first to switch.</p>`
+    : st === 'f' ? `<div class="actions"><button class="btn btn-primary" id="bk">Book seat ${s.label}</button></div><p class="hint">Scan the QR at the seat within 15 minutes or it goes back to the pool.</p>`
+    : `<p class="muted">Someone else has this seat right now. The map updates the moment it frees up.</p>`;
+  box.innerHTML = `<div class="card"><div class="sec-h"><h3>Seat <span class="mono">${s.label}</span></h3><span class="chip ${chip[0]}"><i></i>${chip[1]}</span></div><p class="muted">Floor ${s.floor} · ${s.kind === 'desktop' ? 'Desktop computer' : 'Study table'}</p>${body}</div>`;
+  const b = $('bk'); if (b) b.onclick = () => bookSeat(sel);
+}
+function renderRooms() {
+  const box = $('roomsBox'); if (!box) return; const t = now();
+  box.innerHTML = `<h3>Discussion rooms · floor ${floor}</h3><p class="hint">For 2 to ${CAP} people. One person books; every member scans their seat QR.</p>` +
+    ROOMS.filter((r) => r.floor === floor).map((r) => {
+      const live = S.rooms.filter((x) => x.room === r.id && ['booked','active'].includes(x.status) && x.end > t).sort((a, b) => a.start - b.start), cur = live.find((x) => x.start <= t), nxt = live.find((x) => x.start > t);
+      const chip = cur ? `<span class="chip occ"><i></i>In use until ${clock(cur.end)}</span>` : nxt && nxt.start - t < 1800 ? `<span class="chip booked"><i></i>Booked from ${clock(nxt.start)}</span>` : `<span class="chip free"><i></i>Open now</span>`;
+      return `<div class="room-card"><div class="row"><h3>${r.name}</h3>${chip}</div><div class="hint">${live.length ? 'Booked: ' + live.map((x) => `${clock(x.start)}–${clock(x.end)}`).join(', ') : 'No bookings yet today.'}</div><button class="btn btn-sm" data-room="${r.id}">Book this room</button></div>`; }).join('');
+  box.querySelectorAll('[data-room]').forEach((b) => b.onclick = () => roomModal(b.dataset.room));
+}
+function renderGroups() {
+  const box = $('grpBox'); if (!box) return; const t = now(), me = S.user.reg;
+  const list = S.rooms.filter((r) => ['booked','active'].includes(r.status) && r.end > t && r.members.includes(me));
+  if (!list.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<h3>Your group bookings</h3>` + list.map((rb) => {
+    const started = t >= rb.start, need = Math.ceil(rb.members.length/2);
+    const st = !started ? `Starts at ${clock(rb.start)}. Scanning opens 5 minutes before.` : rb.status === 'active' ? `Group is in. ${rb.scanned.length} of ${rb.members.length} have scanned.` : `${rb.scanned.length} of ${rb.members.length} scanned. At least ${need} must scan by ${clock(rb.start + ATTEND)} or the room is released.`;
+    const chips = rb.members.map((m) => `<span class="member${rb.scanned.includes(m) ? ' ok' : ''}${m === me ? ' me' : ''}">${m}${m === me ? ' (you)' : ''}${rb.scanned.includes(m) ? ' ✓' : ''}</span>`).join('');
+    const others = rb.members.filter((m) => m !== me && !rb.scanned.includes(m));
+    return `<div class="booking-card"><div class="row"><h3>${roomById[rb.room].name}</h3><span class="mono">${clock(rb.start)}–${clock(rb.end)}</span></div><p>${st}</p><div class="members">${chips}</div>
+      <div class="actions">${!rb.scanned.includes(me) ? `<button class="btn btn-sm btn-signal" data-gs="${rb.id}:${me}">Simulate my QR scan</button>` : ''}${others.map((m) => `<button class="btn btn-sm" data-gs="${rb.id}:${m}">Simulate ${m} scanning</button>`).join('')}${rb.org === me ? `<button class="btn btn-sm btn-danger" data-gc="${rb.id}">Cancel booking</button>` : ''}</div></div>`; }).join('');
+  box.querySelectorAll('[data-gs]').forEach((b) => b.onclick = () => { const [id, reg] = b.dataset.gs.split(':'); scanRoom(+id, reg); });
+  box.querySelectorAll('[data-gc]').forEach((b) => b.onclick = () => { const rb = S.rooms.find((r) => r.id === +b.dataset.gc); if (rb) rb.status = 'cancelled'; commit(); toast('Group booking cancelled.'); });
+}
+
+function roomModal(rid) {
+  const room = roomById[rid], me = S.user.reg; let members = [];
+  const nowMs = now()*1000, opts = [{ v:0, l:'Now' }]; let tt = Math.ceil(nowMs/1800000)*1800000;
+  for (let i = 0; i < 18; i++, tt += 1800000) { const v = Math.round((tt - nowMs)/60000); if (v >= 5) opts.push({ v, l:clock(tt/1000) }); }
+  $('modal').innerHTML = `<div class="row"><div><h2>Book ${room.name}</h2><p class="muted">Floor ${room.floor} · seats up to ${CAP}</p></div><button class="btn btn-sm" data-x>Close</button></div>
+    <div class="field"><label for="mi">Group members</label><div class="members" id="chips"></div>
+      <div class="addrow"><input class="input mono" id="mi" inputmode="numeric" autocomplete="off" placeholder="Registration number"><button class="btn" id="ma" type="button">Add</button></div>
+      <div class="hint">Add up to ${CAP - 1} people besides you. Paste several numbers separated by spaces or commas.</div></div>
+    <div class="field"><label for="ms">Start</label><select class="input" id="ms">${opts.map((o) => `<option value="${o.v}">${o.l}</option>`).join('')}</select></div>
+    <div class="field"><label>Length</label><div class="seg">${[30,60,90,120].map((d) => `<label><input type="radio" name="dur" value="${d}" ${d === 60 ? 'checked' : ''}><span>${d} min</span></label>`).join('')}</div></div>
+    <p class="hint" id="sum"></p><div class="err" id="me" aria-live="polite"></div>
+    <div class="actions"><button class="btn" data-x>Cancel</button><button class="btn btn-primary" id="mg">Book room</button></div>`;
+  const chips = $('modal').querySelector('#chips'), inp = $('mi'), err = $('me');
+  const draw = () => { chips.innerHTML = `<span class="member me">${me} (you)</span>` + members.map((m) => `<span class="member">${m}<button type="button" data-rm="${m}" aria-label="Remove ${m}">×</button></span>`).join('');
+    chips.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { members = members.filter((x) => x !== b.dataset.rm); draw(); });
+    const n = members.length + 1; $('sum').textContent = n < 2 ? 'Add at least one more person.' : `${n} people. At least ${Math.ceil(n/2)} must scan their seat QR within 10 minutes of the start, or the room is released.`; };
+  const add = () => { err.textContent = '';
+    for (const tok of inp.value.split(/[\s,;]+/).filter(Boolean)) {
+      if (!/^\d{8}$/.test(tok)) { err.textContent = `"${tok.slice(0, 14)}" is not an 8-digit registration number.`; return; }
+      if (tok === me || members.includes(tok)) continue;
+      if (members.length + 1 >= CAP) { err.textContent = `A room seats at most ${CAP} people, including you.`; return; }
+      members.push(tok); }
+    inp.value = ''; draw(); };
+  $('ma').onclick = add; inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+  $('modal').querySelectorAll('[data-x]').forEach((b) => b.onclick = closeModal);
+  $('mg').onclick = () => { if (inp.value.trim()) add(); if (err.textContent) return;
+    try { bookRoom(rid, members, +$('ms').value, +$('modal').querySelector('input[name=dur]:checked').value); closeModal(); toast(`${room.name} booked. Tell your group to scan in.`); }
+    catch (e) { err.textContent = e.message; } };
+  draw(); $('overlay').classList.add('open'); inp.focus();
+}
+function closeModal() { $('overlay').classList.remove('open'); }
+$('overlay').onclick = (e) => { if (e.target === $('overlay')) closeModal(); };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+/* ── staff dashboard ── */
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let fFloor = 0;
+function sessions() {
+  const all = HIST.map((h) => ({ seat:h.seat, s:h.s, e:h.e, over:h.over })).concat(S.log.map((l) => ({ seat:l.seat, s:l.s, e:l.e, over:l.over })));
+  for (const [id, v] of Object.entries(S.seats)) if (v.since) all.push({ seat:id, s:v.since, e:now(), over:false });
+  return all.filter((x) => !fFloor || seatById[x.seat].floor === fFloor);
+}
+function renderStaff() {
+  const t = now(), c = counts(), ss = sessions();
+  let tot = 0, o = 0, b = 0, k = 0, free = 0; for (const f of Object.values(c)) { tot += f.total; o += f.o; b += f.b; k += f.k; free += f.free; }
+  const roomsBusy = ROOMS.filter((r) => roomBusy(r.id, t)).length;
+  const d0 = new Date(); d0.setHours(0,0,0,0); const today = d0.getTime()/1000;
+  const kp = (n, l) => `<div class="kpi"><b>${n}</b><span>${l}</span></div>`;
+  // heatmap
+  const grid = Array.from({ length:7 }, () => Array(24).fill(0)), days = Array(7).fill(0);
+  const since = Math.floor(t/86400)*86400 - 14*86400; for (let d = since; d < t; d += 86400) days[new Date(d*1000).getDay()]++;
+  for (const x of ss) { let a = Math.max(x.s, since); while (a < x.e) { const dt = new Date(a*1000), hs = new Date(a*1000); hs.setMinutes(0,0,0); const nx = hs.getTime()/1000 + 3600; grid[dt.getDay()][dt.getHours()] += Math.min(nx, x.e) - a; a = nx; } }
+  const avg = grid.map((r, d) => r.map((v) => +(v/3600/Math.max(1, days[d])).toFixed(1))), max = Math.max(.1, ...avg.flat());
+  let pk = null; avg.forEach((r, d) => r.forEach((v, h) => { if (!pk || v > pk.v) pk = { d, h, v }; }));
+  const H0 = 7, H1 = 22, col = (v) => { if (!v) return ''; const k2 = Math.min(1, v/max), a = [223,243,234], z = [23,138,92]; return `background:rgb(${a.map((x, i) => Math.round(x + (z[i] - x)*k2)).join(',')});color:${k2 > .55 ? '#fff' : 'var(--ink)'}`; };
+  let heat = '<span></span>' + Array.from({ length:H1 - H0 + 1 }, (_, i) => `<span class="hd">${(H0 + i) % 12 || 12}${H0 + i < 12 ? 'a' : 'p'}</span>`).join('');
+  for (const d of [1,2,3,4,5,6,0]) { heat += `<span class="dl">${DAYS[d]}</span>`; for (let h = H0; h <= H1; h++) { const v = avg[d][h]; heat += `<span class="c${pk && pk.d === d && pk.h === h ? ' peak' : ''}" style="${col(v)}" title="${DAYS[d]} ${h % 12 || 12}${h < 12 ? ' am' : ' pm'}: about ${v} seats">${v >= 1 ? Math.round(v) : ''}</span>`; } }
+  // hogs
+  const by = {}; for (const x of ss) { const r = (by[x.seat] ||= { id:x.seat, n:0, sum:0, long:0, over:0 }); const m = (x.e - x.s)/60; r.n++; r.sum += m; r.long = Math.max(r.long, m); if (x.over) r.over++; }
+  const hogs = Object.values(by).map((r) => ({ ...r, avg:r.sum/r.n, score:(r.sum/r.n/60)*(1 + r.over/r.n) })).sort((a, b) => b.score - a.score).slice(0, 10);
+  // rooms
+  const rstat = ROOMS.map((r) => { const rows = S.rooms.filter((x) => x.room === r.id && !['booked','active'].includes(x.status)); return { name:r.name, n:rows.length, used:rows.filter((x) => x.status === 'done').length, rel:rows.filter((x) => x.status === 'released').length }; });
+  const live = Object.entries(S.seats).sort((a, b) => (a[1].since || 1e12) - (b[1].since || 1e12)).slice(0, 60);
+
+  $('main').innerHTML = `<div class="admin">
+    <div class="toolbar"><button class="btn" id="bCrowd">Add demo crowd</button><button class="btn btn-danger" id="bReset">Release all live bookings</button><button class="btn" id="bWipe">Reset whole demo</button></div>
+    <section class="kpis" aria-label="Right now">${kp(`${o}<small style="font-size:1.1rem;color:var(--ink2)"> / ${tot}</small>`, 'study seats in use')}${kp(free, 'seats free')}${kp(k, 'seats on a break')}${kp(`${roomsBusy}<small style="font-size:1.1rem;color:var(--ink2)"> / ${ROOMS.length}</small>`, 'group rooms in use')}${kp(ss.filter((x) => x.s >= today).length, 'sittings started today')}</section>
+    <div class="two">
+      <section class="panel"><h2>Seats by floor</h2>${FLOORS.map((f) => { const x = c[f.n], p = (n) => (n/x.total*100).toFixed(1); return `<div class="fbar"><div class="top2"><span>Floor ${f.n} · ${f.kind === 'desktop' ? 'Desktop computers' : 'Study tables'}</span><span class="mono">${x.o + x.b + x.k}/${x.total} taken</span></div><div class="track" role="img" aria-label="Floor ${f.n}: ${x.o} occupied, ${x.b} booked, ${x.k} on break, ${x.free} free"><i class="o" style="width:${p(x.o)}%"></i><i class="b" style="width:${p(x.b)}%"></i><i class="k" style="width:${p(x.k)}%"></i></div></div>`; }).join('')}
+        <div class="legend" style="padding:0;border:0"><span class="chip occ"><i></i>Occupied</span><span class="chip booked"><i></i>Booked</span><span class="chip brk"><i></i>On break</span><span class="chip free"><i></i>Free</span></div></section>
+      <section class="panel"><h2>Discussion rooms</h2><div class="rooms-grid">${ROOMS.map((r) => { const cur = roomBusy(r.id, t); return `<div class="rm${cur ? ' busy' : ''}"><b>${r.name}</b>${cur ? `In use until ${clock(cur.end)}<br>${cur.scanned.length}/${cur.members.length} scanned in` : 'Free'}</div>`; }).join('')}</div></section></div>
+    <section class="panel"><div class="row"><div><h2>Peak hours</h2><p class="muted">${pk && pk.v ? `Busiest: ${DAYS[pk.d]} ${pk.h % 12 || 12} ${pk.h < 12 ? 'am' : 'pm'}, about ${Math.round(pk.v)} seats in use on average.` : 'No sittings yet.'} Based on 14 days of sample history plus what happens in this demo.</p></div>
+      <select class="input" id="fF" style="width:auto;min-height:40px" aria-label="Floor"><option value="0">All floors</option><option value="1">Floor 1</option><option value="2">Floor 2</option><option value="3">Floor 3</option></select></div>
+      <div class="heat-wrap"><div class="heat" role="table" aria-label="Seats in use by day and hour">${heat}</div></div><div class="scale"><span>Fewer seats</span><i></i><span>More seats</span></div></section>
+    <div class="two">
+      <section class="panel"><div class="row"><div><h2>Seats that are always hogged</h2><p class="muted">Long sittings and breaks that ran past the limit.</p></div></div>
+        <div class="tw"><table><thead><tr><th>Seat</th><th>Floor</th><th class="num">Sittings</th><th class="num">Avg</th><th class="num">Longest</th><th class="num">Overruns</th><th></th></tr></thead><tbody>${hogs.map((h) => `<tr><td class="mono">${seatById[h.id].label}</td><td>${seatById[h.id].floor}</td><td class="num">${h.n}</td><td class="num">${(h.avg/60).toFixed(1)} h</td><td class="num">${(h.long/60).toFixed(1)} h</td><td class="num">${h.over}</td><td>${h.avg >= 180 || h.over >= 2 ? '<span class="flag">Watch</span>' : ''}</td></tr>`).join('')}</tbody></table></div></section>
+      <section class="panel"><h2>Room use</h2><div class="tw"><table><thead><tr><th>Room</th><th class="num">Finished</th><th class="num">Used</th><th class="num">Released</th></tr></thead><tbody>${rstat.map((r) => `<tr><td>${r.name}</td><td class="num">${r.n}</td><td class="num">${r.used}</td><td class="num">${r.rel}</td></tr>`).join('')}</tbody></table></div></section></div>
+    <section class="panel"><div class="row"><h2>Who is where right now</h2><span class="hint">${Object.keys(S.seats).length} live bookings</span></div>
+      <div class="tw"><table><thead><tr><th>Seat</th><th>Student</th><th>Status</th><th>Since</th><th></th></tr></thead><tbody>${live.map(([id, v]) => `<tr><td class="mono">F${seatById[id].floor} · ${seatById[id].label}</td><td>${esc(v.name)} <span class="mono muted">${esc(v.reg)}</span></td><td>${v.st === 'b' ? `Waiting for QR until ${clock(v.grace)}` : v.st === 'k' ? `On break until ${clock(v.until)}` : 'Sitting'}</td><td>${v.since ? clock(v.since) : '–'}</td><td><button class="btn btn-sm" data-rel="${id}">Release</button></td></tr>`).join('')}</tbody></table></div></section></div>`;
+  $('fF').value = String(fFloor); $('fF').onchange = (e) => { fFloor = +e.target.value; render(); };
+  document.querySelectorAll('[data-rel]').forEach((b) => b.onclick = () => { endSeat(b.dataset.rel, 'out'); commit(); toast('Seat released.'); });
+  $('bReset').onclick = () => { for (const id of Object.keys(S.seats)) endSeat(id, 'out'); for (const r of S.rooms) if (['booked','active'].includes(r.status)) r.status = 'cancelled'; commit(); toast('All live bookings cleared.'); };
+  $('bCrowd').onclick = () => { const tt = now(); for (const s of SEATS) if (!S.seats[s.id] && Math.random() < .45) S.seats[s.id] = { st:'o', reg:'2' + String(1000000 + Math.floor(Math.random()*8999999)), name:FAKE[Math.floor(Math.random()*FAKE.length)], since:tt - Math.random()*3600, until:tt + 1800 + Math.random()*7200, fake:true, nb:0 }; commit(); toast('Demo crowd added.'); };
+  $('bWipe').onclick = () => { const u = S.user; S = fresh(); S.user = u; commit(); toast('Demo reset.'); };
+}
+
+window.addEventListener('storage', (e) => { if (e.key === KEY) { const n = load(); if (n) { S = n; render(); } } });
+window.addEventListener('hashchange', () => { const v = location.hash === '#staff' ? 'staff' : 'student'; if (v !== view) { view = v; render(); } });
+render(); save();
+setInterval(tick, 1000);
+setInterval(() => { if (view === 'staff') renderStaff(); }, 5000);
+})();
+</script>
